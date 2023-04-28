@@ -36,3 +36,11 @@ type GitHubRepoData struct {
 	Private     bool   `json:"private"`
 	AutoInit    bool   `json:"auto_init"`
 }
+
+type KubeComponent struct {
+	KubeComponentType string      `json:"kubeComponentType"`
+	APIVersion        string      `json:"apiVersion"`
+	Kind              string      `json:"kind"`
+	KubeObjectValue   interface{} `json:"kubeObjectValue"`
+	KubeObjectKey     string      `json:"kubeObjectKey"`
+}

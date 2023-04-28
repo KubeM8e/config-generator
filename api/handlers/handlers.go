@@ -3,6 +3,7 @@ package handlers
 import (
 	"config-generator/models"
 	"config-generator/pkg/configs"
+	"config-generator/pkg/configs/core"
 	"config-generator/pkg/utils"
 	"encoding/json"
 	"github.com/labstack/echo"
@@ -15,8 +16,22 @@ const (
 	deploymentName = "Deployment-1"
 )
 
-func CoreChartsHandler(c echo.Context) error {
-	return nil
+func HelmHandler(c echo.Context) error {
+	configs := make(map[string]interface{})
+
+	// reads the JSON object and stores in the map
+	err := json.NewDecoder(c.Request().Body).Decode(&configs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// generates values.yaml file from the map
+	core.GenerateValuesYamlFile(configs)
+
+	// generates helm charts
+	core.ConfigureHelmChart(configs)
+
+	return c.JSON(http.StatusOK, configs)
 }
 
 func CDPipelineHandler(c echo.Context) error {

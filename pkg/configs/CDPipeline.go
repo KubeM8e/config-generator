@@ -37,14 +37,7 @@ func ConfigureCDPipeline(configObject models.CDPipelineRequest) *models.ArgoCDAp
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
 
-	//TODO: put those in correct place
 	gitWorkTree, gitRepo := utils.CloneGitHubRepo(DeploymentId)
-
-	// makes the folder and writes to the file
-	//err := os.MkdirAll(helmDirectory, os.ModePerm)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
 
 	applicationYamlFile, err := os.Create(tmpDirectory + "/application.yaml")
 	if err != nil {
