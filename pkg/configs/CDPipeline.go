@@ -10,15 +10,15 @@ import (
 
 // TODO: make them envs?
 const (
-	isSelfHeal    = true
-	isPrune       = true
-	helmDirectory = "helm"
-	tmpDirectory  = "tmp"
+	isSelfHeal      = true
+	isPrune         = true
+	applicationYaml = "application.yaml"
+	tmpArgoFolder   = "argo"
 )
 
 var DeploymentId string
 
-func ConfigureCDPipeline(configObject models.CDPipelineRequest) *models.ArgoCDApplicationConfig {
+func ConfigureCDPipeline(configObject models.CDPipelineRequest, repoName string) *models.ArgoCDApplicationConfig {
 
 	applicationConfig := models.ArgoCDApplicationConfig{
 		APIVersion: "argoproj.io/v1alpha1",
@@ -37,24 +37,24 @@ func ConfigureCDPipeline(configObject models.CDPipelineRequest) *models.ArgoCDAp
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
 
-	gitWorkTree, gitRepo := utils.CloneGitHubRepo(DeploymentId)
+	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpArgoFolder)
 
-	applicationYamlFile, err := os.Create(tmpDirectory + "/application.yaml")
+	applicationYamlFile, err := os.Create(tmpArgoFolder + "/application.yaml")
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not create argo dir: %s", err)
 	}
 
 	applicationYamlData, err := yaml.Marshal(&applicationConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not marshal argo : %s", err)
 	}
 
 	_, err = applicationYamlFile.Write(applicationYamlData)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not write argo : %s", err)
 	}
 
-	utils.PushToGitHub(gitWorkTree, gitRepo)
+	utils.PushToGitHub(gitWorkTree, gitRepo, []string{applicationYaml})
 
 	return &applicationConfig
 

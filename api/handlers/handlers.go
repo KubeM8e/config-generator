@@ -14,24 +14,31 @@ import (
 const (
 	user           = "Jon Doe"
 	deploymentName = "Deployment-1"
+	argoSuffix     = "-argo"
+	helmSuffix     = "-helm"
 )
 
 func HelmHandler(c echo.Context) error {
-	configs := make(map[string]interface{})
+	configsMap := make(map[string]interface{})
 
 	// reads the JSON object and stores in the map
-	err := json.NewDecoder(c.Request().Body).Decode(&configs)
+	err := json.NewDecoder(c.Request().Body).Decode(&configsMap)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// save helm templates to a GitHub repo
+	configs.DeploymentId = utils.ReadFromDB(user, deploymentName)
+	utils.CreateGitHubRepo(configs.DeploymentId + helmSuffix)
+
 	// generates values.yaml file from the map
-	core.GenerateValuesYamlFile(configs)
+	repoName := configs.DeploymentId + helmSuffix
+	gitWorkTree, gitRepo := core.GenerateValuesYamlFile(configsMap, repoName)
 
 	// generates helm charts
-	core.ConfigureHelmChart(configs)
+	core.ConfigureHelmChart(configsMap, gitWorkTree, gitRepo)
 
-	return c.JSON(http.StatusOK, configs)
+	return c.JSON(http.StatusOK, configsMap)
 }
 
 func CDPipelineHandler(c echo.Context) error {
@@ -46,10 +53,12 @@ func CDPipelineHandler(c echo.Context) error {
 	// TODO: move this to the correct place
 	utils.ConnectMongoDB()
 	configs.DeploymentId = utils.ReadFromDB(user, deploymentName)
-	utils.CreateGitHubRepo(configs.DeploymentId)
+
+	repoName := configs.DeploymentId + argoSuffix
+	utils.CreateGitHubRepo(repoName)
 
 	// configure application.yaml file
-	response := configs.ConfigureCDPipeline(request)
+	response := configs.ConfigureCDPipeline(request, repoName)
 
 	return c.JSON(http.StatusOK, &response)
 }

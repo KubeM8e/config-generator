@@ -2,9 +2,13 @@ package core
 
 import (
 	"config-generator/models"
+	"config-generator/pkg/utils"
+	"fmt"
+	"github.com/go-git/go-git/v5"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,21 +16,23 @@ const (
 	deploymentName  = "deployment"
 	serviceName     = "service"
 	ingressName     = "ingress"
-	baseHelmFolder  = "helm"
 	templatesFolder = "templates"
+	tmpHelmFolder   = "helm"
 )
 
-var templatesFolderPath = baseHelmFolder + "/" + templatesFolder
+var templatesFolderPath = tmpHelmFolder + "/" + templatesFolder
 
-func GenerateValuesYamlFile(configs map[string]interface{}) {
+func GenerateValuesYamlFile(configs map[string]interface{}, repoName string) (*git.Worktree, *git.Repository) {
+	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpHelmFolder)
+
 	// create a helm folder
-	err := os.MkdirAll(baseHelmFolder, os.ModePerm)
+	err := os.MkdirAll(tmpHelmFolder, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	//creates values.yaml file inside the helm folder
-	valuesFile, err := os.Create(baseHelmFolder + "/values.yaml")
+	valuesFile, err := os.Create(tmpHelmFolder + "/values.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,9 +43,11 @@ func GenerateValuesYamlFile(configs map[string]interface{}) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return gitWorkTree, gitRepo
 }
 
-func ConfigureHelmChart(configs map[string]interface{}) {
+func ConfigureHelmChart(configs map[string]interface{}, gitWorkTree *git.Worktree, gitRepo *git.Repository) {
 
 	// temporarily hold the response map in the generatePlaceholders function
 	responseMap := make(map[string]interface{})
@@ -60,7 +68,7 @@ func ConfigureHelmChart(configs map[string]interface{}) {
 				KubeObjectValue:   value,
 				KubeObjectKey:     key,
 			}
-			generateHelmChart(deploymentObject, responseMap)
+			generateHelmTemplate(deploymentObject, responseMap)
 
 		} else if strings.EqualFold(key, serviceName) {
 			serviceObject := models.KubeComponent{
@@ -70,7 +78,7 @@ func ConfigureHelmChart(configs map[string]interface{}) {
 				KubeObjectValue:   value,
 				KubeObjectKey:     key,
 			}
-			generateHelmChart(serviceObject, responseMap)
+			generateHelmTemplate(serviceObject, responseMap)
 
 		} else if strings.EqualFold(key, ingressName) {
 			ingressObject := models.KubeComponent{
@@ -80,12 +88,35 @@ func ConfigureHelmChart(configs map[string]interface{}) {
 				KubeObjectValue:   value,
 				KubeObjectKey:     key,
 			}
-			generateHelmChart(ingressObject, responseMap)
+			generateHelmTemplate(ingressObject, responseMap)
 		}
 	}
+
+	// push the folder to GitHub
+	filesToPush := []string{"values.yaml"}
+	errWalk := filepath.Walk("helm/templates", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		relativePath := strings.Replace(path, "helm\\", "", 1)
+
+		if !info.IsDir() {
+			filesToPush = append(filesToPush, relativePath)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("Could not file walk helm directory: %s", errWalk)
+	}
+
+	utils.PushToGitHub(gitWorkTree, gitRepo, filesToPush)
 }
 
-func generateHelmChart(kubeObj models.KubeComponent, responseMap map[string]interface{}) {
+func generateHelmTemplate(kubeObj models.KubeComponent, responseMap map[string]interface{}) {
 	// creates deployment.yaml file inside the helm/templates folder
 	yamlFile, _ := os.Create(templatesFolderPath + "/" + kubeObj.KubeComponentType + ".yaml")
 

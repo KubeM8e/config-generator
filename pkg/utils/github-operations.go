@@ -15,7 +15,7 @@ import (
 
 // TODO: get this from env
 const (
-	accessToken = "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"
+	accessToken = "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"
 	githubAPI   = "https://api.github.com"
 )
 
@@ -58,11 +58,11 @@ func CreateGitHubRepo(repoName string) {
 
 }
 
-func CloneGitHubRepo(repoName string) (*git.Worktree, *git.Repository) {
+func CloneGitHubRepo(repoName string, tempFolder string) (*git.Worktree, *git.Repository) {
 	url := "https://github.com/Shenali-SJ/" + repoName + ".git"
 
 	// TODO: replace with organization details - the username
-	repository, err := git.PlainClone("./tmp", false, &git.CloneOptions{
+	repository, err := git.PlainClone(tempFolder, false, &git.CloneOptions{
 		URL: url,
 		Auth: &gitHttp.BasicAuth{
 			Username: "Shenali-SJ",
@@ -82,7 +82,7 @@ func CloneGitHubRepo(repoName string) (*git.Worktree, *git.Repository) {
 	return workTree, repository
 }
 
-func PushToGitHub(workTree *git.Worktree, repo *git.Repository) {
+func PushToGitHub(workTree *git.Worktree, repo *git.Repository, files []string) {
 	//status, _ := w.Status()
 
 	//person := Person{
@@ -96,14 +96,16 @@ func PushToGitHub(workTree *git.Worktree, repo *git.Repository) {
 	//out, _ := yaml.Marshal(&person)
 	//file.Write(out)
 
-	_, err := workTree.Add("application.yaml")
-	if err != nil {
-		log.Fatalf("Failed to add the file: %v\n", err)
+	for _, file := range files {
+		_, err := workTree.Add(file)
+		if err != nil {
+			log.Printf("Could not add the file: %v\n", err)
+		}
 	}
 
 	// Commit the changes
 	// TODO: replace with organization details
-	_, err = workTree.Commit("Add file", &git.CommitOptions{
+	_, err := workTree.Commit("Add file", &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Shenali",
 			Email: "shenalijayakody@gmail.com",
@@ -111,21 +113,21 @@ func PushToGitHub(workTree *git.Worktree, repo *git.Repository) {
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not commit: %s", err)
 	}
 
 	// Push the changes
 	// TODO: replace with organization details - the username
-	err = repo.Push(&git.PushOptions{
+	errPush := repo.Push(&git.PushOptions{
 		Auth: &gitHttp.BasicAuth{
 			Username: "Shenali-SJ",
 			Password: accessToken,
 		},
 	})
-	if err != nil {
-		log.Fatal(err)
+	if errPush != nil {
+		log.Printf("Could not push: %s", errPush)
 	}
 
 	// TODO: remove?
-	log.Print("Changes pushed successfully")
+	//log.Print("Changes pushed successfully")
 }
