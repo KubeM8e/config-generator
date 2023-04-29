@@ -93,13 +93,15 @@ func ConfigureHelmChart(configs map[string]interface{}, gitWorkTree *git.Worktre
 	}
 
 	// push the folder to GitHub
+	// add values.yaml anyway with charts inside helm/templates
 	filesToPush := []string{"values.yaml"}
 	errWalk := filepath.Walk("helm/templates", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("File walk error: %s", err)
 			return err
 		}
 
+		// the path is like helm/test/testFile - should remove helm part
 		relativePath := strings.Replace(path, "helm\\", "", 1)
 
 		if !info.IsDir() {

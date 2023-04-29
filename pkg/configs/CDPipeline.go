@@ -36,6 +36,7 @@ func ConfigureCDPipeline(configObject models.CDPipelineRequest, repoName string)
 	applicationConfig.Spec.SyncPolicy.SyncOptions = []string{"CreateNamespace=true"}
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
+	applicationConfig.Spec.Helm.ValuesFiles = []string{"values.yaml"}
 
 	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpArgoFolder)
 

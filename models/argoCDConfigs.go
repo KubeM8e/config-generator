@@ -25,5 +25,8 @@ type ArgoCDApplicationConfig struct {
 				Prune    bool `yaml:"prune"`
 			} `yaml:"automated"`
 		} `yaml:"syncPolicy"`
+		Helm struct {
+			ValuesFiles []string `yaml:"valuesFiles"`
+		} `yaml:"helm"`
 	} `yaml:"spec"`
 }
