@@ -59,7 +59,7 @@ func CreateGitHubRepo(repoName string) {
 }
 
 func CloneGitHubRepo(repoName string, tempFolder string) (*git.Worktree, *git.Repository) {
-	url := "https://github.com/Shenali-SJ/" + repoName + ".git"
+	url := "https://github.com/Shenali-SJ/" + repoName + ".git" // todo: move to env
 
 	// TODO: replace with organization details - the username
 	repository, err := git.PlainClone(tempFolder, false, &git.CloneOptions{
@@ -71,12 +71,12 @@ func CloneGitHubRepo(repoName string, tempFolder string) (*git.Worktree, *git.Re
 		Progress: os.Stdout,
 	})
 	if err != nil {
-		log.Fatalf("Could not cloan - %v", err)
+		log.Printf("Could not cloan - %v", err)
 	}
 
 	workTree, err := repository.Worktree()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not get worktree: %s", err)
 	}
 
 	return workTree, repository
