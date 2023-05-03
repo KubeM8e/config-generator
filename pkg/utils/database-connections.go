@@ -22,7 +22,7 @@ const (
 func CreateAppDataDB(appName string, version string) {
 	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not create new mongo client: %s", err)
 	}
 
 	ctx := context.Background()

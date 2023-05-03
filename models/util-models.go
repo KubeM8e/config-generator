@@ -310,7 +310,10 @@ type CDPipelineRequest struct {
 }
 
 type ConfigurationRequest struct {
+	Id            string                  `json:"id" yaml:"id"`
 	AppName       string                  `json:"appName" yaml:"appName"`
+	Description   string                  `json:"description"yaml:"description"`
+	ImageURL      string                  `json:"imageUrl"yaml:"imageURL""`
 	Version       string                  `json:"version" yaml:"version"`
 	HostName      string                  `json:"hostName" yaml:"hostName"`
 	ClusterURL    string                  `json:"clusterURL" yaml:"clusterURL"`
