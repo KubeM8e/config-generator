@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/go-git/go-git/v5"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -24,7 +24,7 @@ const (
 
 var templatesFolderPath = tmpHelmFolder + "/" + templatesFolder
 
-func GenerateValuesYamlFile(configs models.ConfigurationRequest, repoName string) (*git.Worktree, *git.Repository) {
+func GenerateValueAndChartFiles(configs models.ConfigurationRequest, repoName string) (*git.Worktree, *git.Repository) {
 	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpHelmFolder)
 
 	// create a helm folder
@@ -38,12 +38,30 @@ func GenerateValuesYamlFile(configs models.ConfigurationRequest, repoName string
 	if err != nil {
 		log.Printf("Could not create values.yaml file: %s", err)
 	}
-
 	// converts map to yaml file
-	yamlData, _ := yaml.Marshal(&configs)
-	_, err = valuesFile.Write(yamlData)
+	yamlDataValues, _ := yaml.Marshal(&configs)
+	_, err = valuesFile.Write(yamlDataValues)
 	if err != nil {
 		log.Printf("Could not write data to values.yaml %s", err)
+	}
+
+	//creates chart.yaml file inside the helm folder
+	chartFile, err := os.Create(tmpHelmFolder + "/Chart.yaml")
+	if err != nil {
+		log.Printf("Could not create Chart.yaml file: %s", err)
+	}
+
+	chart := models.Chart{
+		APIVersion:  "v2",
+		Name:        configs.AppName + "-chart",
+		Version:     configs.Version,
+		Description: "A Helm chart for " + configs.AppName + " application.",
+	}
+
+	yamlDataChart, _ := yaml.Marshal(chart)
+	_, err = chartFile.Write(yamlDataChart)
+	if err != nil {
+		log.Printf("Could not write data to Chart.yaml %s", err)
 	}
 
 	return gitWorkTree, gitRepo
@@ -79,20 +97,29 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 	var paths []models.Path
 	// rest of the ingress generation is inside the below loop - microservices details
 
+	//microservices := configs.Microservices
 	microservices := configs.Microservices
 	for index, microservice := range microservices {
 
+		// {{- with (index .Values.grafana.ingress.hosts 0) }}
 		// paths in the values.yaml to get placeholders
-		serviceNamePath := "microservices[" + strconv.Itoa(index) + "].serviceName"
-		containerPortPath := "microservices[" + strconv.Itoa(index) + "].containerPort"
-		avgReplicasPath := "microservices[" + strconv.Itoa(index) + "].avgReplicas"
-		dockerImagePath := "microservices[" + strconv.Itoa(index) + "].dockerImage"
-		minReplicasPath := "microservices[" + strconv.Itoa(index) + "].minReplicas"
-		maxReplicasPath := "microservices[" + strconv.Itoa(index) + "].maxReplicas"
+		//serviceNamePath := "microservices " + strconv.Itoa(index) + " .serviceName"
+		//containerPortPath := "microservices " + strconv.Itoa(index) + " .containerPort"
+		//avgReplicasPath := "microservices " + strconv.Itoa(index) + " .avgReplicas"
+		//dockerImagePath := "microservices " + strconv.Itoa(index) + " .dockerImage"
+		//minReplicasPath := "microservices " + strconv.Itoa(index) + " .minReplicas"
+		//maxReplicasPath := "microservices " + strconv.Itoa(index) + " .maxReplicas"
+
+		serviceNamePath := "microservices." + index + ".serviceName"
+		//containerPortPath := "microservices." + index + ".containerPort"
+		//avgReplicasPath := "microservices." + index + ".avgReplicas"
+		dockerImagePath := "microservices." + index + ".dockerImage"
+		//minReplicasPath := "microservices." + index + ".minReplicas"
+		//maxReplicasPath := "microservices." + index + ".maxReplicas"
+		maxCPUPath := "microservices." + index + ".maxCPU"
+		maxMemoryPath := "microservices." + index + ".maxMemory"
 
 		serviceNamePlaceholder := getPlaceholder(serviceNamePath)
-
-		envs := microservice.Envs
 
 		// configmaps
 		configMap := models.ConfigMap{
@@ -100,14 +127,15 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 			Kind:       "ConfigMap",
 			Data:       make(map[string]string),
 		}
-		for _, env := range envs {
-			configMap.Data[env.Name] = env.Value
+		for iEnv, env := range microservices[index].Envs {
+			configMap.Data[iEnv] = env.Value
 		}
 		configMap.Metadata.Name = serviceNamePlaceholder
-		createManifestFile(configMap, microservice.ServiceName+"-configmap")
+		createManifestFile(configMap, index+"-configmap")
 
 		// secret
-		// fixme: duplicated envs
+		// fixme: duplicated envs in both secrets and configmaps
+		// fixme: username and password should be saved in secrets not in configmaps
 		secret := models.Secret{
 			ApiVersion: "v1",
 			Kind:       "Secret",
@@ -115,39 +143,22 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 			Data:       make(map[string]string),
 		}
 		secret.Metadata.Name = serviceNamePlaceholder
-		for _, env := range envs {
+		for iEnv, env := range microservices[index].Envs {
 			// secret values should be encoded to base64
-			secret.Data[env.Name] = string(encodeBase64(env.Value))
+			secret.Data[iEnv] = string(encodeBase64(env.Value))
 		}
-		createManifestFile(secret, microservice.ServiceName+"-secret")
+		createManifestFile(secret, index+"-secret")
 
 		// deployment
 		deployment := models.Deployment{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
-			Spec: struct {
-				Replicas string `yaml:"replicas"`
-				Selector struct {
-					MatchLabels struct {
-						App string `yaml:"app"`
-					} `yaml:"matchLabels"`
-				} `yaml:"selector"`
-				Template struct {
-					Metadata struct {
-						Labels struct {
-							App string `yaml:"app"`
-						} `yaml:"labels"`
-					} `yaml:"metadata"`
-					Spec struct {
-						Containers []models.Container `yaml:"containers"`
-					} `yaml:"spec"`
-				} `yaml:"template"`
-			}{},
 		}
 
 		deployment.Metadata.Name = serviceNamePlaceholder
 		deployment.Metadata.Labels.App = serviceNamePlaceholder
-		deployment.Spec.Replicas = getPlaceholder(avgReplicasPath)
+		//deployment.Spec.Replicas = getPlaceholder(avgReplicasPath)
+		deployment.Spec.Replicas = microservices[index].AvgReplicas
 		deployment.Spec.Selector.MatchLabels.App = serviceNamePlaceholder
 		deployment.Spec.Template.Metadata.Labels.App = serviceNamePlaceholder
 		deployment.Spec.Template.Metadata.Labels.App = serviceNamePlaceholder
@@ -156,8 +167,18 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		var env models.Env
 		var envsSlice []models.Env
 		var envNamePath string
-		for indexEnv, _ := range envs {
-			envNamePath = "microservices[" + strconv.Itoa(index) + "].envs[" + strconv.Itoa(indexEnv) + "].name"
+		for iEnv, _ := range microservices[index].Envs {
+			// fixme: MYSQL_ROOT_PASSWORD and MYSQL_DATABASE getting added to the env section of staefulset of the mysql and also the microservice deployment
+			//if !strings.EqualFold(envName.Name, "MYSQL_ROOT_PASSWORD") && !strings.EqualFold(envName.Name, "MYSQL_DATABASE") {
+			//	envNamePath = "microservices[" + strconv.Itoa(index) + "].envs[" + strconv.Itoa(indexEnv) + "].name"
+			//	env = models.Env{
+			//		Name: getPlaceholder(envNamePath),
+			//	}
+			//	env.ValueFrom.ConfigMapKeyRef.Name = serviceNamePlaceholder
+			//	env.ValueFrom.ConfigMapKeyRef.Key = getPlaceholder(envNamePath)
+			//	envsSlice = append(envsSlice, env)
+			//}
+			envNamePath = "microservices." + index + ".envs." + iEnv + ".name" //todo: check env
 			env = models.Env{
 				Name: getPlaceholder(envNamePath),
 			}
@@ -167,7 +188,8 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		}
 
 		// ports array
-		portDep := models.PortDep{ContainerPort: getPlaceholder(containerPortPath)}
+		//portDep := models.PortDep{ContainerPort: getPlaceholder(containerPortPath)}
+		portDep := models.PortDep{ContainerPort: microservices[index].ContainerPort}
 		container := models.Container{
 			Name:  serviceNamePlaceholder,
 			Image: getPlaceholder(dockerImagePath),
@@ -177,8 +199,14 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		container.Ports = append(container.Ports, portDep)
 		container.Env = envsSlice
 
+		// sets resource requests and limits for the container
+		container.Resources.Requests.CPU = "100m"
+		container.Resources.Requests.Memory = "500Mi"
+		container.Resources.Limits.CPU = getPlaceholder(maxCPUPath)
+		container.Resources.Limits.Memory = getPlaceholder(maxMemoryPath)
+
 		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, container)
-		createManifestFile(deployment, microservice.ServiceName+"-deployment")
+		createManifestFile(deployment, index+"-deployment")
 
 		// hpa
 		hpa := models.HorizontalPodAutoscaler{
@@ -189,8 +217,10 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		hpa.Spec.ScaleTargetRef.APIVersion = "apps/v1"
 		hpa.Spec.ScaleTargetRef.Kind = "Deployment"
 		hpa.Spec.ScaleTargetRef.Name = serviceNamePlaceholder
-		hpa.Spec.MinReplicas = getPlaceholder(minReplicasPath)
-		hpa.Spec.MaxReplicas = getPlaceholder(maxReplicasPath)
+		//hpa.Spec.MinReplicas = getPlaceholder(minReplicasPath)
+		hpa.Spec.MinReplicas = microservices[index].MinReplicas
+		//hpa.Spec.MaxReplicas = getPlaceholder(maxReplicasPath)
+		hpa.Spec.MaxReplicas = microservices[index].MaxReplicas
 		metrics := models.Metrics{
 			Type: "Resource",
 		}
@@ -198,7 +228,7 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		metrics.Resource.Target.Type = "Utilization"
 		metrics.Resource.Target.AverageUtilization = 50
 		hpa.Spec.Metrics = append(hpa.Spec.Metrics, metrics)
-		createManifestFile(hpa, microservice.ServiceName+"-hpa")
+		createManifestFile(hpa, index+"-hpa")
 
 		// VPA
 		vpa := models.VerticalPodAutoscaler{
@@ -210,7 +240,7 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		vpa.Spec.TargetRef.Kind = "Deployment"
 		vpa.Spec.TargetRef.Name = serviceNamePlaceholder
 		vpa.Spec.UpdatePolicy.UpdateMode = "Auto"
-		createManifestFile(vpa, microservice.ServiceName+"-vpa")
+		//createManifestFile(vpa, index+"-vpa") // fixme: argo error
 
 		// service
 		service := models.Service{
@@ -220,13 +250,14 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		service.Metadata.Name = serviceNamePlaceholder
 		service.Spec.Selector.App = serviceNamePlaceholder
 		portSvc := models.PortSVC{
-			Name:       "http",
-			Port:       80,
-			TargetPort: getPlaceholder(containerPortPath),
+			Name: "http",
+			Port: 80,
+			//TargetPort: getPlaceholder(containerPortPath),
+			TargetPort: microservices[index].ContainerPort,
 		}
 		service.Spec.Ports = append(service.Spec.Ports, portSvc)
 		service.Spec.Type = "ClusterIP"
-		createManifestFile(service, microservice.ServiceName+"-service")
+		createManifestFile(service, index+"-service")
 
 		// ingress (rest)
 		path := models.Path{
@@ -237,6 +268,12 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 		path.Backend.Service.Port.Name = "http"
 		paths = append(paths, path)
 
+		// If the microservice use MySQL
+		configTypes := microservice.Configs
+		isMysql := slices.Contains(configTypes, "mysql")
+		if isMysql {
+			createMySQLConfigs(serviceNamePlaceholder, index)
+		}
 	}
 
 	rule := models.Rule{
@@ -254,8 +291,132 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 
 }
 
+func createMySQLConfigs(servicePlaceholder string, microserviceName string) {
+	storage := "1Gi"
+	localLabel := "local"
+	numReplicas := 3
+	statefulSetAppLabel := servicePlaceholder + "-mysql"
+
+	// PV
+	pv := models.PersistentVolume{
+		ApiVersion: "v1",
+		Kind:       "PersistentVolume",
+		Spec: struct {
+			StorageClassName string `yaml:"storageClassName"`
+			Capacity         struct {
+				Storage string `yaml:"storage"`
+			} `yaml:"capacity"`
+			AccessModes []string `yaml:"accessModes"`
+			HostPath    struct {
+				Path string `yaml:"path"`
+			} `yaml:"hostPath"`
+		}{},
+	}
+
+	pv.Metadata.Name = servicePlaceholder
+	pv.Metadata.Labels.Type = localLabel
+	pv.Spec.StorageClassName = "default"
+	pv.Spec.Capacity.Storage = storage
+	pv.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pv.Spec.HostPath.Path = "/mnt/data/mysql"
+	createManifestFile(pv, microserviceName+"-pv")
+
+	// PVC
+	pvc := models.PersistentVolumeClaim{
+		ApiVersion: "v1",
+		Kind:       "PersistentVolumeClaim",
+	}
+
+	pvc.Metadata.Name = servicePlaceholder
+	pvc.Metadata.Labels.App = servicePlaceholder
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Spec.Resources.Requests.Storage = storage
+	pvc.Spec.Selector.MatchLabels.Type = localLabel
+	createManifestFile(pvc, microserviceName+"-pvc")
+
+	statefulSet := models.StatefulSet{
+		ApiVersion: "apps/v1",
+		Kind:       "StatefulSet",
+	}
+
+	statefulSet.Metadata.Name = servicePlaceholder
+	statefulSet.Spec.ServiceName = servicePlaceholder // a headless service will be created with this name
+	statefulSet.Spec.Selector.MatchLabels.App = statefulSetAppLabel
+	statefulSet.Spec.Replicas = numReplicas
+	statefulSet.Spec.Template.Metadata.Labels.App = statefulSetAppLabel
+	// ports
+	port := models.PortDep{
+		ContainerPort: 3306,
+		Name:          "mysql",
+	}
+	ports := []models.PortDep{port}
+	//envs
+	envPW := models.Env{
+		Name: "MYSQL_ROOT_PASSWORD",
+	}
+	envPW.ValueFrom.ConfigMapKeyRef.Name = servicePlaceholder
+	envPW.ValueFrom.ConfigMapKeyRef.Key = "MYSQL_ROOT_PASSWORD"
+
+	envDB := models.Env{
+		Name: "MYSQL_DATABASE",
+	}
+	envDB.ValueFrom.ConfigMapKeyRef.Name = servicePlaceholder
+	envDB.ValueFrom.ConfigMapKeyRef.Key = "MYSQL_DATABASE"
+
+	envs := []models.Env{envPW, envDB}
+
+	// volumeMounts
+	volumeName := "mysql-data"
+	volumePath := "/var/lib/mysql"
+	volumeMount := models.VolumeMounts{
+		Name:      volumeName,
+		MountPath: volumePath,
+	}
+	// container
+	container := models.Container{
+		Name:         servicePlaceholder + "-mysql",
+		Image:        "mysql:latest",
+		Ports:        ports,
+		Env:          envs,
+		VolumeMounts: []models.VolumeMounts{volumeMount},
+	}
+	// volumeClaimTemplates
+	volumeClaimTemplate := models.VolumeClaimTemplate{}
+	volumeClaimTemplate.Metadata.Name = servicePlaceholder
+	volumeClaimTemplate.Spec.AccessModes = []string{"ReadWriteOnce"}
+	volumeClaimTemplate.Spec.Resources.Requests.Storage = storage
+	volumeClaimTemplate.Spec.StorageClassName = "default"
+
+	statefulSet.Spec.Template.Spec.Containers = []models.Container{container}
+	statefulSet.Spec.VolumeClaimTemplates = []models.VolumeClaimTemplate{volumeClaimTemplate}
+	volume := models.Volume{
+		Name: volumeName,
+		PersistentVolumeClaim: struct {
+			ClaimName string `yaml:"claimName"`
+		}{servicePlaceholder},
+	}
+	statefulSet.Spec.Template.Spec.Volumes = []models.Volume{volume}
+	createManifestFile(statefulSet, microserviceName+"-statefulset")
+
+	// service (to expose the stateful set)
+	service := models.Service{
+		ApiVersion: "v1",
+		Kind:       "Service",
+	}
+	service.Metadata.Name = "mysql"
+	service.Spec.Selector.App = statefulSetAppLabel
+	portSvc := models.PortSVC{
+		Protocol:   "TCP",
+		Port:       3306,
+		TargetPort: 3306,
+	}
+	service.Spec.Ports = []models.PortSVC{portSvc}
+	createManifestFile(service, microserviceName+"-service-mysql")
+
+}
+
 func pushHelmTemplatesToGitHub(gitWorkTree *git.Worktree, gitRepo *git.Repository) {
-	filesToPush := []string{"values.yaml"} // add values.yaml anyway with charts inside helm/templates
+	filesToPush := []string{"values.yaml", "Chart.yaml"} // add values.yaml anyway with charts inside helm/templates
 	errWalk := filepath.Walk("helm/templates", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("File walk error: %s", err)

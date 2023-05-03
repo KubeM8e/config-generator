@@ -35,7 +35,7 @@ func ConfigurationHandler(c echo.Context) error {
 	utils.CreateGitHubRepo(repoNameHelm)
 
 	// generates values.yaml
-	gitWorkTree, gitRepo := core.GenerateValuesYamlFile(request, repoNameHelm)
+	gitWorkTree, gitRepo := core.GenerateValueAndChartFiles(request, repoNameHelm)
 
 	// generates helm templates
 	core.ConfigureHelmChart(request, gitWorkTree, gitRepo)

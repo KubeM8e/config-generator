@@ -13,6 +13,9 @@ type ArgoCDApplicationConfig struct {
 			RepoURL        string `yaml:"repoURL"`
 			TargetRevision string `yaml:"targetRevision"`
 			Path           string `yaml:"path"`
+			Helm           struct {
+				ValueFiles []string `yaml:"valueFiles"`
+			} `yaml:"helm"`
 		} `yaml:"source"`
 		Destination struct {
 			Server    string `yaml:"server"`
@@ -25,8 +28,5 @@ type ArgoCDApplicationConfig struct {
 				Prune    bool `yaml:"prune"`
 			} `yaml:"automated"`
 		} `yaml:"syncPolicy"`
-		Helm struct {
-			ValuesFiles []string `yaml:"valuesFiles"`
-		} `yaml:"helm"`
 	} `yaml:"spec"`
 }

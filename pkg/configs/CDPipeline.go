@@ -29,14 +29,15 @@ func ConfigureCDPipeline(appName string, repoURL string, clusterURL string, repo
 	applicationConfig.Metadata.Namespace = "argocd" // the cluster must have a namespace called argocd
 	applicationConfig.Spec.Project = "default"
 	applicationConfig.Spec.Source.RepoURL = repoURL
-	applicationConfig.Spec.Source.TargetRevision = "HEAD"
-	applicationConfig.Spec.Source.Path = "helm/templates"
+	//applicationConfig.Spec.Source.TargetRevision = "HEAD"
+	applicationConfig.Spec.Source.TargetRevision = "main"
+	applicationConfig.Spec.Source.Path = "./" // base directory of GitHub repo
+	applicationConfig.Spec.Source.Helm.ValueFiles = []string{"values.yaml"}
 	applicationConfig.Spec.Destination.Server = clusterURL
 	applicationConfig.Spec.Destination.Namespace = "argoapp"
 	applicationConfig.Spec.SyncPolicy.SyncOptions = []string{"CreateNamespace=true"}
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
-	applicationConfig.Spec.Helm.ValuesFiles = []string{"values.yaml"}
 
 	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpArgoFolder)
 
@@ -79,7 +80,6 @@ func ConfigureCDPipeline2(configObject models.CDPipelineRequest, repoName string
 	applicationConfig.Spec.SyncPolicy.SyncOptions = []string{"CreateNamespace=true"}
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
-	applicationConfig.Spec.Helm.ValuesFiles = []string{"values.yaml"}
 
 	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpArgoFolder)
 
