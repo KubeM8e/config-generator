@@ -17,7 +17,7 @@ const (
 )
 
 func ConfigurationHandler(c echo.Context) error {
-	// catch the request
+	projectId := c.Param("id")
 	request := models.ConfigurationRequest{}
 
 	err := json.NewDecoder(c.Request().Body).Decode(&request)
@@ -25,29 +25,37 @@ func ConfigurationHandler(c echo.Context) error {
 		log.Printf("Could not decode the request: %s", err)
 	}
 
+	// repos
+	repoNameHelm := projectId + helmSuffix
+	repoNameArgo := projectId + argoSuffix
+	helmRepoURL := "https://github.com/Shenali-SJ/" + repoNameHelm + ".git" // monitoringValues.yaml is also added to same repo
+	argoRepoURL := "https://github.com/Shenali-SJ/" + repoNameArgo + ".git"
+
 	// creates database
-	utils.CreateAppDataDB(request.AppName, request.Version)
+	//utils.CreateAppDataDB(request.AppName, request.Version)
 	// reads from database
-	appId := utils.ReadFromDB(request.AppName)
+	//appId := utils.ReadFromDB(request.AppName)
 
 	// creates helm GitHub repo
-	repoNameHelm := appId + helmSuffix
 	utils.CreateGitHubRepo(repoNameHelm)
 
 	// generates values.yaml
 	gitWorkTree, gitRepo := core.GenerateValueAndChartFiles(request, repoNameHelm)
 
-	repoURL := "https://github.com/Shenali-SJ/" + repoNameHelm + ".git" // monitoringValues.yaml is also added to same repo
 	// creates argo GitHub repo
-	repoNameArgo := appId + argoSuffix
 	utils.CreateGitHubRepo(repoNameArgo)
 
 	// generates helm templates
 	argoWorktree, argoRepo := core.ConfigureTemplatesAndCharts(request, repoNameArgo, gitWorkTree, gitRepo)
 
-	configs.ConfigureCDPipeline(request.AppName, repoURL, request.ClusterURL, repoNameArgo, argoWorktree, argoRepo)
+	configs.ConfigureCDPipeline(request.AppName, helmRepoURL, request.ClusterURL, repoNameArgo, argoWorktree, argoRepo)
 
-	return c.JSON(http.StatusOK, "Success")
+	response := models.RepoResponse{
+		HelmRepo: helmRepoURL,
+		ArgoRepo: argoRepoURL,
+	}
+
+	return c.JSON(http.StatusOK, &response)
 }
 
 //func HelmHandler(c echo.Context) error {

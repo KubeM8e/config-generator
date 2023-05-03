@@ -7,7 +7,7 @@ import (
 
 func main() {
 	e := echo.New()
-	e.POST("/configure", handlers.ConfigurationHandler)
+	e.POST("/configure/:id", handlers.ConfigurationHandler)
 	e.POST("/service-mesh", handlers.ServiceMeshHandler)
 
 	// old version
