@@ -314,7 +314,9 @@ type ConfigurationRequest struct {
 	Version       string                  `json:"version" yaml:"version"`
 	HostName      string                  `json:"hostName" yaml:"hostName"`
 	ClusterURL    string                  `json:"clusterURL" yaml:"clusterURL"`
+	ClusterIPs    []string                `json:"clusterIPs" yaml:"clusterIPs"`
 	Microservices map[string]Microservice `json:"microservices" yaml:"microservices"`
+	Monitoring    bool                    `json:"monitoring" yaml:"monitoring"`
 }
 
 type Microservice struct {

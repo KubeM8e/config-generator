@@ -3,6 +3,7 @@ package configs
 import (
 	"config-generator/models"
 	"config-generator/pkg/utils"
+	"github.com/go-git/go-git/v5"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
@@ -13,12 +14,18 @@ const (
 	isSelfHeal      = true
 	isPrune         = true
 	applicationYaml = "application.yaml"
-	tmpArgoFolder   = "argo"
+	TmpArgoFolder   = "argo"
 )
 
 //var DeploymentId string
 
-func ConfigureCDPipeline(appName string, repoURL string, clusterURL string, repoName string) *models.ArgoCDApplicationConfig {
+func ConfigureCDPipeline(appName string, repoURL string, clusterURL string, repoName string, worktree *git.Worktree, repository *git.Repository) *models.ArgoCDApplicationConfig {
+
+	var gitWorkTree *git.Worktree
+	var gitRepo *git.Repository
+	if worktree == nil {
+		gitWorkTree, gitRepo = utils.CloneGitHubRepo(repoName, TmpArgoFolder)
+	}
 
 	applicationConfig := models.ArgoCDApplicationConfig{
 		APIVersion: "argoproj.io/v1alpha1",
@@ -39,9 +46,9 @@ func ConfigureCDPipeline(appName string, repoURL string, clusterURL string, repo
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
 
-	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpArgoFolder)
+	//gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, TmpArgoFolder)
 
-	applicationYamlFile, err := os.Create(tmpArgoFolder + "/application.yaml")
+	applicationYamlFile, err := os.Create(TmpArgoFolder + "/application.yaml")
 	if err != nil {
 		log.Printf("Could not create argo dir: %s", err)
 	}
@@ -56,7 +63,11 @@ func ConfigureCDPipeline(appName string, repoURL string, clusterURL string, repo
 		log.Printf("Could not write argo : %s", err)
 	}
 
-	utils.PushToGitHub(gitWorkTree, gitRepo, []string{applicationYaml})
+	if worktree == nil {
+		utils.PushToGitHub(gitWorkTree, gitRepo, []string{applicationYaml})
+	} else {
+		utils.PushToGitHub(worktree, repository, []string{applicationYaml})
+	}
 
 	return &applicationConfig
 
@@ -81,9 +92,9 @@ func ConfigureCDPipeline2(configObject models.CDPipelineRequest, repoName string
 	applicationConfig.Spec.SyncPolicy.Automated.SelfHeal = isSelfHeal
 	applicationConfig.Spec.SyncPolicy.Automated.Prune = isPrune
 
-	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpArgoFolder)
+	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, TmpArgoFolder)
 
-	applicationYamlFile, err := os.Create(tmpArgoFolder + "/application.yaml")
+	applicationYamlFile, err := os.Create(TmpArgoFolder + "/application.yaml")
 	if err != nil {
 		log.Printf("Could not create argo dir: %s", err)
 	}

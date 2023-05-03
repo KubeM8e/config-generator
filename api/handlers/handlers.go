@@ -37,17 +37,15 @@ func ConfigurationHandler(c echo.Context) error {
 	// generates values.yaml
 	gitWorkTree, gitRepo := core.GenerateValueAndChartFiles(request, repoNameHelm)
 
-	// generates helm templates
-	core.ConfigureHelmChart(request, gitWorkTree, gitRepo)
-
+	repoURL := "https://github.com/Shenali-SJ/" + repoNameHelm + ".git" // monitoringValues.yaml is also added to same repo
 	// creates argo GitHub repo
 	repoNameArgo := appId + argoSuffix
 	utils.CreateGitHubRepo(repoNameArgo)
 
-	// generates application.yaml
-	// todo: move to env
-	argoRepoURL := "https://github.com/Shenali-SJ/" + repoNameHelm + ".git"
-	configs.ConfigureCDPipeline(request.AppName, argoRepoURL, request.ClusterURL, repoNameArgo)
+	// generates helm templates
+	argoWorktree, argoRepo := core.ConfigureTemplatesAndCharts(request, repoNameArgo, gitWorkTree, gitRepo)
+
+	configs.ConfigureCDPipeline(request.AppName, repoURL, request.ClusterURL, repoNameArgo, argoWorktree, argoRepo)
 
 	return c.JSON(http.StatusOK, "Success")
 }

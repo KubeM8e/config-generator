@@ -2,6 +2,7 @@ package core
 
 import (
 	"config-generator/models"
+	"config-generator/pkg/configs"
 	"config-generator/pkg/utils"
 	"encoding/base64"
 	"fmt"
@@ -68,7 +69,7 @@ func GenerateValueAndChartFiles(configs models.ConfigurationRequest, repoName st
 	//return nil, nil
 }
 
-func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Worktree, gitRepo *git.Repository) {
+func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, argoRepoName string, gitWorkTree *git.Worktree, gitRepo *git.Repository) (*git.Worktree, *git.Repository) {
 	appNamePath := "appName"
 	hostNamePath := "hostName"
 
@@ -97,8 +98,8 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 	var paths []models.Path
 	// rest of the ingress generation is inside the below loop - microservices details
 
-	//microservices := configs.Microservices
-	microservices := configs.Microservices
+	//microservices := appDataRequest.Microservices
+	microservices := appDataRequest.Microservices
 	for index, microservice := range microservices {
 
 		// {{- with (index .Values.grafana.ingress.hosts 0) }}
@@ -284,10 +285,17 @@ func ConfigureHelmChart(configs models.ConfigurationRequest, gitWorkTree *git.Wo
 	}
 	rule.HTTP.Paths = paths
 	ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
-	createManifestFile(ingress, configs.AppName+"-ingress")
+	createManifestFile(ingress, appDataRequest.AppName+"-ingress")
+
+	// adds monitoring using kube-prometheus stack
+	if appDataRequest.Monitoring == true {
+		return configs.CreatePrometheusStackValuesYaml(appDataRequest.ClusterIPs, argoRepoName)
+	}
 
 	// push the folder to GitHub
 	pushHelmTemplatesToGitHub(gitWorkTree, gitRepo)
+
+	return nil, nil
 
 }
 
