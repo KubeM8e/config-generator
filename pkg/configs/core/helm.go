@@ -23,7 +23,17 @@ const (
 	tmpHelmFolder   = "helm"
 )
 
+const (
+	deployment  = "deploymentBased"
+	statefulSet = "statefulSetBased"
+	daemonSet   = "daemonSetBased"
+	job         = "jobBased"
+	cronJob     = "cronJobBased"
+)
+
 var templatesFolderPath = tmpHelmFolder + "/" + templatesFolder
+
+// basic type is deployment based
 
 func GenerateValueAndChartFiles(configs models.ConfigurationRequest, repoName string) (*git.Worktree, *git.Repository) {
 	gitWorkTree, gitRepo := utils.CloneGitHubRepo(repoName, tmpHelmFolder)
@@ -269,12 +279,18 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		path.Backend.Service.Port.Name = "http"
 		paths = append(paths, path)
 
-		// If the microservice use MySQL
-		configTypes := microservice.Configs
-		isMysql := slices.Contains(configTypes, "mysql")
-		if isMysql {
-			createMySQLConfigs(serviceNamePlaceholder, index)
+		// If stateful service
+		if slices.Contains(microservice.ServiceEvaluation.KubeConfigType, statefulSet) {
+			if strings.EqualFold(appDataRequest.EvaluationResult.Database, "MySQL") {
+				createMySQLConfigs(serviceNamePlaceholder, index)
+			}
 		}
+		// If the microservice use MySQL
+		//configTypes := microservice.Configs
+		//isMysql := slices.Contains(configTypes, "mysql")
+		//if isMysql {
+		//	createMySQLConfigs(serviceNamePlaceholder, index)
+		//}
 	}
 
 	rule := models.Rule{
@@ -342,16 +358,16 @@ func createMySQLConfigs(servicePlaceholder string, microserviceName string) {
 	pvc.Spec.Selector.MatchLabels.Type = localLabel
 	createManifestFile(pvc, microserviceName+"-pvc")
 
-	statefulSet := models.StatefulSet{
+	statefulSetModel := models.StatefulSet{
 		ApiVersion: "apps/v1",
 		Kind:       "StatefulSet",
 	}
 
-	statefulSet.Metadata.Name = servicePlaceholder
-	statefulSet.Spec.ServiceName = servicePlaceholder // a headless service will be created with this name
-	statefulSet.Spec.Selector.MatchLabels.App = statefulSetAppLabel
-	statefulSet.Spec.Replicas = numReplicas
-	statefulSet.Spec.Template.Metadata.Labels.App = statefulSetAppLabel
+	statefulSetModel.Metadata.Name = servicePlaceholder
+	statefulSetModel.Spec.ServiceName = servicePlaceholder // a headless service will be created with this name
+	statefulSetModel.Spec.Selector.MatchLabels.App = statefulSetAppLabel
+	statefulSetModel.Spec.Replicas = numReplicas
+	statefulSetModel.Spec.Template.Metadata.Labels.App = statefulSetAppLabel
 	// ports
 	port := models.PortDep{
 		ContainerPort: 3306,
@@ -395,16 +411,16 @@ func createMySQLConfigs(servicePlaceholder string, microserviceName string) {
 	volumeClaimTemplate.Spec.Resources.Requests.Storage = storage
 	volumeClaimTemplate.Spec.StorageClassName = "default"
 
-	statefulSet.Spec.Template.Spec.Containers = []models.Container{container}
-	statefulSet.Spec.VolumeClaimTemplates = []models.VolumeClaimTemplate{volumeClaimTemplate}
+	statefulSetModel.Spec.Template.Spec.Containers = []models.Container{container}
+	statefulSetModel.Spec.VolumeClaimTemplates = []models.VolumeClaimTemplate{volumeClaimTemplate}
 	volume := models.Volume{
 		Name: volumeName,
 		PersistentVolumeClaim: struct {
 			ClaimName string `yaml:"claimName"`
 		}{servicePlaceholder},
 	}
-	statefulSet.Spec.Template.Spec.Volumes = []models.Volume{volume}
-	createManifestFile(statefulSet, microserviceName+"-statefulset")
+	statefulSetModel.Spec.Template.Spec.Volumes = []models.Volume{volume}
+	createManifestFile(statefulSetModel, microserviceName+"-statefulset")
 
 	// service (to expose the stateful set)
 	service := models.Service{
