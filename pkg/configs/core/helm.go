@@ -112,6 +112,8 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 	microservices := appDataRequest.Microservices
 	for index, microservice := range microservices {
 
+		microserviceName := microservice.ServiceName
+
 		// {{- with (index .Values.grafana.ingress.hosts 0) }}
 		// paths in the values.yaml to get placeholders
 		//serviceNamePath := "microservices " + strconv.Itoa(index) + " .serviceName"
@@ -142,7 +144,7 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 			configMap.Data[iEnv] = env.Value
 		}
 		configMap.Metadata.Name = serviceNamePlaceholder
-		createManifestFile(configMap, index+"-configmap")
+		createManifestFile(configMap, microserviceName+"-configmap")
 
 		// secret
 		// fixme: duplicated envs in both secrets and configmaps
@@ -158,28 +160,28 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 			// secret values should be encoded to base64
 			secret.Data[iEnv] = string(encodeBase64(env.Value))
 		}
-		createManifestFile(secret, index+"-secret")
+		createManifestFile(secret, microserviceName+"-secret")
 
-		// deployment
-		deployment := models.Deployment{
+		// deploymentObj
+		deploymentObj := models.Deployment{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		}
 
-		deployment.Metadata.Name = serviceNamePlaceholder
-		deployment.Metadata.Labels.App = serviceNamePlaceholder
-		//deployment.Spec.Replicas = getPlaceholder(avgReplicasPath)
-		deployment.Spec.Replicas = microservices[index].AvgReplicas
-		deployment.Spec.Selector.MatchLabels.App = serviceNamePlaceholder
-		deployment.Spec.Template.Metadata.Labels.App = serviceNamePlaceholder
-		deployment.Spec.Template.Metadata.Labels.App = serviceNamePlaceholder
+		deploymentObj.Metadata.Name = serviceNamePlaceholder
+		deploymentObj.Metadata.Labels.App = serviceNamePlaceholder
+		//deploymentObj.Spec.Replicas = getPlaceholder(avgReplicasPath)
+		deploymentObj.Spec.Replicas = microservices[index].AvgReplicas
+		deploymentObj.Spec.Selector.MatchLabels.App = serviceNamePlaceholder
+		deploymentObj.Spec.Template.Metadata.Labels.App = serviceNamePlaceholder
+		deploymentObj.Spec.Template.Metadata.Labels.App = serviceNamePlaceholder
 
 		// envs array
 		var env models.Env
 		var envsSlice []models.Env
 		var envNamePath string
 		for iEnv, _ := range microservices[index].Envs {
-			// fixme: MYSQL_ROOT_PASSWORD and MYSQL_DATABASE getting added to the env section of staefulset of the mysql and also the microservice deployment
+			// fixme: MYSQL_ROOT_PASSWORD and MYSQL_DATABASE getting added to the env section of staefulset of the mysql and also the microservice deploymentObj
 			//if !strings.EqualFold(envName.Name, "MYSQL_ROOT_PASSWORD") && !strings.EqualFold(envName.Name, "MYSQL_DATABASE") {
 			//	envNamePath = "microservices[" + strconv.Itoa(index) + "].envs[" + strconv.Itoa(indexEnv) + "].name"
 			//	env = models.Env{
@@ -206,7 +208,7 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 			Image: getPlaceholder(dockerImagePath),
 		}
 
-		// adds ports array and envs array to the container struct of the deployment struct
+		// adds ports array and envs array to the container struct of the deploymentObj struct
 		container.Ports = append(container.Ports, portDep)
 		container.Env = envsSlice
 
@@ -216,8 +218,8 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		container.Resources.Limits.CPU = getPlaceholder(maxCPUPath)
 		container.Resources.Limits.Memory = getPlaceholder(maxMemoryPath)
 
-		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, container)
-		createManifestFile(deployment, index+"-deployment")
+		deploymentObj.Spec.Template.Spec.Containers = append(deploymentObj.Spec.Template.Spec.Containers, container)
+		createManifestFile(deploymentObj, microserviceName+"-deployment")
 
 		// hpa
 		hpa := models.HorizontalPodAutoscaler{
@@ -239,7 +241,7 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		metrics.Resource.Target.Type = "Utilization"
 		metrics.Resource.Target.AverageUtilization = 50
 		hpa.Spec.Metrics = append(hpa.Spec.Metrics, metrics)
-		createManifestFile(hpa, index+"-hpa")
+		createManifestFile(hpa, microserviceName+"-hpa")
 
 		// VPA
 		vpa := models.VerticalPodAutoscaler{
@@ -268,7 +270,7 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		}
 		service.Spec.Ports = append(service.Spec.Ports, portSvc)
 		service.Spec.Type = "ClusterIP"
-		createManifestFile(service, index+"-service")
+		createManifestFile(service, microserviceName+"-service")
 
 		// ingress (rest)
 		path := models.Path{
@@ -282,7 +284,7 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		// If stateful service
 		if slices.Contains(microservice.ServiceEvaluation.KubeConfigType, statefulSet) {
 			if strings.EqualFold(appDataRequest.EvaluationResult.Database, "MySQL") {
-				createMySQLConfigs(serviceNamePlaceholder, index)
+				createMySQLConfigs(serviceNamePlaceholder, microserviceName)
 			}
 		}
 		// If the microservice use MySQL

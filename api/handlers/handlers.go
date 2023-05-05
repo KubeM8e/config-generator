@@ -39,6 +39,15 @@ func ConfigurationHandler(c echo.Context) error {
 	// creates helm GitHub repo
 	utils.CreateGitHubRepo(repoNameHelm)
 
+	// makes all the names to correct format
+	request.AppName = utils.ChangeTheNamesToCorrectFormat(request.AppName)
+	microservicesMap := request.Microservices
+	for key, microservice := range microservicesMap {
+		//key = utils.ChangeTheNamesToCorrectFormat(key)
+		microservice.ServiceName = utils.ChangeTheNamesToCorrectFormat(microservice.ServiceName)
+		microservicesMap[key] = microservice
+	}
+
 	// generates values.yaml
 	gitWorkTree, gitRepo := core.GenerateValueAndChartFiles(request, repoNameHelm)
 

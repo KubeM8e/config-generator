@@ -12,45 +12,45 @@ type CDPipelineRequest struct {
 }
 
 type ConfigurationRequest struct {
-	ProjectId        string                  `json:"projectId,omitempty" yaml:"projectId" bson:"projectId,omitempty"`
-	AppName          string                  `json:"appName,omitempty" yaml:"appName" bson:"appName,omitempty"`
-	Description      string                  `json:"description,omitempty" yaml:"description" bson:"description,omitempty"`
-	ImageURL         string                  `json:"imageUrl,omitempty" yaml:"imageURL" bson:"imageURL,omitempty"`
-	Version          string                  `json:"version,omitempty" yaml:"version" bson:"version,omitempty"`
-	HostName         string                  `json:"hostName,omitempty" yaml:"hostName" bson:"hostName,omitempty"`
-	ClusterURL       string                  `json:"clusterURL,omitempty" yaml:"clusterURL" bson:"clusterURL,omitempty"`
-	ClusterIPs       []string                `json:"clusterIPs,omitempty" yaml:"clusterIPs" bson:"clusterIPs,omitempty"`
-	Microservices    map[string]Microservice `json:"microservices,omitempty" yaml:"microservices" bson:"microservices,omitempty"`
-	Monitoring       bool                    `json:"monitoring,omitempty" yaml:"monitoring" bson:"monitoring,omitempty"`
-	EvaluationResult EvaluationResponse      `json:"evaluationResult,omitempty" yaml:"evaluationResult" bson:"evaluationResult,omitempty"`
+	ProjectId        string                  `json:"projectId,omitempty" yaml:"projectId,omitempty" bson:"projectId,omitempty"`
+	AppName          string                  `json:"appName,omitempty" yaml:"appName,omitempty" bson:"appName,omitempty"`
+	Description      string                  `json:"description,omitempty" yaml:"description,omitempty" bson:"description,omitempty"`
+	ImageURL         string                  `json:"imageUrl,omitempty" yaml:"imageURL,omitempty" bson:"imageURL,omitempty"`
+	Version          string                  `json:"version,omitempty" yaml:"version,omitempty" bson:"version,omitempty"`
+	HostName         string                  `json:"hostName,omitempty" yaml:"hostName,omitempty" bson:"hostName,omitempty"`
+	ClusterURL       string                  `json:"clusterURL,omitempty" yaml:"clusterURL,omitempty" bson:"clusterURL,omitempty"`
+	ClusterIPs       []string                `json:"clusterIPs,omitempty" yaml:"clusterIPs,omitempty" bson:"clusterIPs,omitempty"`
+	Monitoring       bool                    `json:"monitoring,omitempty" yaml:"monitoring,omitempty" bson:"monitoring,omitempty"`
+	Microservices    map[string]Microservice `json:"microservices,omitempty" yaml:"microservices,omitempty" bson:"microservices,omitempty"`
+	EvaluationResult EvaluationResponse      `json:"evaluationResult,omitempty" yaml:"evaluationResult,omitempty" bson:"evaluationResult,omitempty"`
 }
 
 type Microservice struct {
-	ServiceName       string                `json:"serviceName,omitempty" yaml:"serviceName" bson:"serviceName,omitempty"`
-	Configs           []string              `json:"configs,omitempty" yaml:"configs" bson:"configs,omitempty"`
-	AvgReplicas       int                   `json:"avgReplicas,omitempty" yaml:"avgReplicas" bson:"avgReplicas,omitempty"`
-	MinReplicas       int                   `json:"minReplicas,omitempty" yaml:"minReplicas" bson:"minReplicas,omitempty"`
-	MaxReplicas       int                   `json:"maxReplicas,omitempty" yaml:"maxReplicas" bson:"maxReplicas,omitempty"`
-	MaxCPU            string                `json:"maxCPU,omitempty" yaml:"maxCPU" bson:"maxCPU,omitempty"`
-	MaxMemory         string                `json:"maxMemory,omitempty" yaml:"maxMemory" bson:"maxMemory,omitempty"`
-	DockerImage       string                `json:"dockerImage,omitempty" yaml:"dockerImage" bson:"dockerImage,omitempty"`
-	ContainerPort     int                   `json:"containerPort,omitempty" yaml:"containerPort" bson:"containerPort,omitempty"`
-	Envs              map[string]EnvRequest `json:"envs,omitempty" yaml:"envs" bson:"envs,omitempty"`
-	ServiceEvaluation ServiceEvaluation     `json:"serviceEvaluation,omitempty" yaml:"serviceEvaluation" bson:"serviceEvaluation,omitempty"`
+	ServiceName       string                `json:"serviceName,omitempty" yaml:"serviceName,omitempty" bson:"serviceName,omitempty"`
+	Configs           []string              `json:"configs,omitempty" yaml:"configs,omitempty" bson:"configs,omitempty"`
+	AvgReplicas       int                   `json:"avgReplicas,omitempty" yaml:"avgReplicas,omitempty" bson:"avgReplicas,omitempty"`
+	MinReplicas       int                   `json:"minReplicas,omitempty" yaml:"minReplicas,omitempty" bson:"minReplicas,omitempty"`
+	MaxReplicas       int                   `json:"maxReplicas,omitempty" yaml:"maxReplicas,omitempty" bson:"maxReplicas,omitempty"`
+	MaxCPU            string                `json:"maxCPU,omitempty" yaml:"maxCPU,omitempty" bson:"maxCPU,omitempty"`
+	MaxMemory         string                `json:"maxMemory,omitempty" yaml:"maxMemory,omitempty" bson:"maxMemory,omitempty"`
+	DockerImage       string                `json:"dockerImage,omitempty" yaml:"dockerImage,omitempty" bson:"dockerImage,omitempty"`
+	ContainerPort     int                   `json:"containerPort,omitempty" yaml:"containerPort,omitempty" bson:"containerPort,omitempty"`
+	Envs              map[string]EnvRequest `json:"envs,omitempty" yaml:"envs,omitempty" bson:"envs,omitempty"`
+	ServiceEvaluation ServiceEvaluation     `json:"serviceEvaluation,omitempty" yaml:"serviceEvaluation,omitempty" bson:"serviceEvaluation,omitempty"`
 }
 
 type EvaluationResponse struct {
-	Language                string   `json:"language,omitempty" bson:"language,omitempty"`
-	Database                string   `json:"database,omitempty" bson:"database,omitempty"`
-	HasDockerized           bool     `json:"hasDockerized" bson:"hasDockerized"`
-	HasKubernetesService    bool     `json:"hasKubernetesService" bson:"hasKubernetesService"`
-	HasKubernetesDeployment bool     `json:"hasKubernetesDeployment" bson:"hasKubernetesDeployment"`
-	Microservices           []string `json:"microservices,omitempty" bson:"microservices,omitempty"`
+	Language                string   `json:"language,omitempty" yaml:"language,omitempty" bson:"language,omitempty"`
+	Database                string   `json:"database,omitempty" yaml:"database,omitempty" bson:"database,omitempty"`
+	HasDockerized           bool     `json:"hasDockerized" yaml:"hasDockerized,omitempty" bson:"hasDockerized"`
+	HasKubernetesService    bool     `json:"hasKubernetesService" yaml:"hasKubernetesService,omitempty" bson:"hasKubernetesService"`
+	HasKubernetesDeployment bool     `json:"hasKubernetesDeployment" yaml:"hasKubernetesDeployment,omitempty" bson:"hasKubernetesDeployment"`
+	Microservices           []string `json:"microservices,omitempty" yaml:"microservices,omitempty" bson:"microservices,omitempty"`
 }
 
 type EnvRequest struct {
-	Name  string `json:"name,omitempty" yaml:"name" bson:"name,omitempty"`
-	Value string `json:"value,omitempty" yaml:"value" bson:"value,omitempty"`
+	Name  string `json:"name,omitempty" yaml:"name,omitempty" bson:"name,omitempty"`
+	Value string `json:"value,omitempty" yaml:"value,omitempty" bson:"value,omitempty"`
 }
 
 type ServiceEvaluation struct {
