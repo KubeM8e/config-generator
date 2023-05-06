@@ -2,7 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/argo" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/helm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/api/handlers/argo" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/api/handlers/helm" vcs="Git" />
   </component>
 </project>
