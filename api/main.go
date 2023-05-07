@@ -3,10 +3,14 @@ package main
 import (
 	"config-generator/api/handlers"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 func main() {
 	e := echo.New()
+
+	e.Use(middleware.CORS())
+
 	e.POST("/configure/:id", handlers.ConfigurationHandler)
 	e.POST("/service-mesh", handlers.ServiceMeshHandler)
 

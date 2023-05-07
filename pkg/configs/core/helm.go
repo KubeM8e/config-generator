@@ -129,8 +129,8 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		dockerImagePath := "microservices." + index + ".dockerImage"
 		//minReplicasPath := "microservices." + index + ".minReplicas"
 		//maxReplicasPath := "microservices." + index + ".maxReplicas"
-		maxCPUPath := "microservices." + index + ".maxCPU"
-		maxMemoryPath := "microservices." + index + ".maxMemory"
+		//maxCPUPath := "microservices." + index + ".maxCPU"
+		//maxMemoryPath := "microservices." + index + ".maxMemory"
 
 		serviceNamePlaceholder := getPlaceholder(serviceNamePath)
 
@@ -215,8 +215,8 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 		// sets resource requests and limits for the container
 		container.Resources.Requests.CPU = "100m"
 		container.Resources.Requests.Memory = "500Mi"
-		container.Resources.Limits.CPU = getPlaceholder(maxCPUPath)
-		container.Resources.Limits.Memory = getPlaceholder(maxMemoryPath)
+		container.Resources.Limits.CPU = "1000m"
+		container.Resources.Limits.Memory = "1Gi"
 
 		deploymentObj.Spec.Template.Spec.Containers = append(deploymentObj.Spec.Template.Spec.Containers, container)
 		createManifestFile(deploymentObj, microserviceName+"-deployment")
@@ -305,13 +305,13 @@ func ConfigureTemplatesAndCharts(appDataRequest models.ConfigurationRequest, arg
 	ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
 	createManifestFile(ingress, appDataRequest.AppName+"-ingress")
 
+	// push the folder to GitHub
+	pushHelmTemplatesToGitHub(gitWorkTree, gitRepo)
+
 	// adds monitoring using kube-prometheus stack
 	if appDataRequest.Monitoring == true {
 		return configs.CreatePrometheusStackValuesYaml(appDataRequest.ClusterIPs, argoRepoName)
 	}
-
-	// push the folder to GitHub
-	pushHelmTemplatesToGitHub(gitWorkTree, gitRepo)
 
 	return nil, nil
 
